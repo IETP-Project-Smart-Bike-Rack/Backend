@@ -2,7 +2,6 @@ from django.db import models
 
 # Create your models here.
 class User(models.Model):
-    user_id= models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     phonenumber = models.CharField(max_length=15, blank=True, null=True)
@@ -12,7 +11,6 @@ class User(models.Model):
         return self.name
 
 class Rack(models.Model):
-    rack_id = models.CharField(max_length=50, unique=True)
     STATUS_CHOICES = [
         ('locked', 'Locked'),
         ('unlocked', 'Unlocked'),
@@ -20,21 +18,13 @@ class Rack(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='unlocked')
     address = models.TextField(blank=True, null=True)
 
-
 class Rack_User(models.Model):
     user= models.ForeignKey(User, on_delete=models.CASCADE)
     rack= models.ForeignKey(Rack, on_delete=models.CASCADE)
     locked_at = models.DateTimeField(auto_now_add=True)
 
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
-    phone = models.CharField(max_length=15, blank=True, null=True)
-    
-    def __str__(self):
-        return f"Profile of {self.user.name}"
-
 class History(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     rack = models.ForeignKey(Rack, on_delete=models.CASCADE)
-    locked_at = models.DateTimeField()
-    unlocked_at = models.DateTimeField(auto_now_add=True)
+    locked_at = models.DateTimeField(null=True, blank=True)  
+    unlocked_at = models.DateTimeField(null=True, blank=True)

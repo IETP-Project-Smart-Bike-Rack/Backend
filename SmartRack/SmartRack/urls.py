@@ -19,5 +19,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('rack/',include('rackproject.urls'))
+    path('smartrack/',include('rackproject.urls'))
 ]
