@@ -1,5 +1,4 @@
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
 from django.db.models import ObjectDoesNotExist
 from .models import Rack, Rack_User, User, History
 from .serializers import RackSerializer, Rack_UserSerializer, UserSerializer, HistorySerializer
@@ -38,28 +37,41 @@ def send_arduino_signal(rack_id, action):
         logger.exception("Error communicating with Arduino")
         return {"error": str(e)}
 
+@api_view(['GET'])
+def lock_rack_page(request):
+    user_id = request.COOKIES.get('user_id')
+    if not user_id:
+        return Response({'message': 'User not authenticated'}, status=401)
+    
+    page_url = ""
+    response_data = {
+        "message": "QR code scanner page retrieved successfully",
+        "page_url": page_url,
+    }
+    return Response(response_data)
+
 # QR Code Scanning and Locking Logic
 @api_view(['POST'])
 def loc(request):
-    if request.method == 'POST':
-        rack_id = request.POST.get('rack_id')
+        data = request.data
+        rack_id = data.get('rack_id')
         user_id = request.COOKIES.get('user_id')
         if not user_id:
-            return JsonResponse({'message': 'User not authenticated'}, status=401)
+            return Response({'message': 'User not authenticated'}, status=401)
 
         if not rack_id:
-            return JsonResponse({'message': 'Rack ID is required'}, status=400)
+            return Response({'message': 'Rack ID is required'}, status=400)
 
         try:
             user= User.objects.get(id=user_id)
             rack = Rack.objects.get(id=rack_id)
             if rack.status == 'locked':
-                return JsonResponse({'message': 'Rack is already locked. Please choose another.'}, status=400)
+                return Response({'message': 'Rack is already locked. Please choose another.'}, status=400)
 
             # Signal Arduino to lock the rack
             arduino_response = send_arduino_signal(rack_id, "lock")
             if "error" in arduino_response:
-                return JsonResponse(arduino_response, status=500)
+                return Response(arduino_response, status=500)
 
             # Update rack status and timestamps
             rack.status = 'locked'
@@ -74,25 +86,42 @@ def loc(request):
             serializer = Rack_UserSerializer(data=rack_user_data)
             if serializer.is_valid():
                 serializer.save()
-                return JsonResponse({'message': 'Rack locked successfully'})
+                return Response({'message': 'Rack locked successfully'})
             else:
-                return JsonResponse(serializer.errors, status=400)
+                return Response(serializer.errors, status=400)
 
         except Rack.DoesNotExist:
             logger.error(f"Rack with ID {rack_id} not found")
-            return JsonResponse({'message': 'Rack not found'}, status=404)
+            return Response({'message': 'Rack not found'}, status=404)
+
+
+@api_view(['GET'])
+def unlock_page(request):
+   
+    user_id = request.COOKIES.get('user_id')
+    if not user_id:
+        return Response({'message': 'User not authenticated'}, status=401)
+
+    page_url = ""
+
+    # Respond with the URL and optional user details
+    return Response({
+        "message": "Unlock page URL retrieved successfully",
+        "unlock_page_url": page_url,
+        "user_id": user_id  # Pass user_id if needed by the frontend
+    })
 
 @api_view(['POST'])
 # Unlock Logic
 def unloc(request):
-    if request.method == 'POST':
-        rack_id = request.POST.get('rack_id')
+        data = request.data
+        rack_id = data.get('rack_id')
         user_id = request.COOKIES.get('user_id')
         if not user_id:
-            return JsonResponse({'message': 'User not authenticated'}, status=401)
+            return Response({'message': 'User not authenticated'}, status=401)
 
         if not rack_id:
-            return JsonResponse({'message': 'Rack ID is required'}, status=400)
+            return Response({'message': 'Rack ID is required'}, status=400)
 
         try:
             rack_user = Rack_User.objects.get(user_id=user_id, rack_id=rack_id)
@@ -102,7 +131,7 @@ def unloc(request):
             # Signal Arduino to unlock the rack
             arduino_response = send_arduino_signal(rack_id, "unlock")
             if "error" in arduino_response:
-                return JsonResponse(arduino_response, status=500)
+                return Response(arduino_response, status=500)
 
             # Update rack status and timestamps
             current_time = timezone.now()
@@ -121,41 +150,51 @@ def unloc(request):
             if history_serializer.is_valid():
                 history_serializer.save()
                 rack_user.delete()
-                return JsonResponse({'message': 'Rack unlocked successfully'})
+                return Response({'message': 'Rack unlocked successfully'})
             else:
-                return JsonResponse(history_serializer.errors, status=400)
+                return Response(history_serializer.errors, status=400)
 
         except Rack_User.DoesNotExist:
             logger.error(f"Rack or user record not found for rack_id {rack_id} and user_id {user_id}")
-            return JsonResponse({'message': 'Rack or user record not found'}, status=404)
+            return Response({'message': 'Rack or user record not found'}, status=404)
 
+
+@api_view(['GET'])
+def access_get(request):
+    """Handles the GET request to return the login/register page message."""
+    if request.method == 'GET':
+        return Response({
+            'status': 'success',
+            'message': 'Frontend handles the login/register page.',
+            'redirect_url': 'https://frontend-platform.com/login',  # Replace with actual frontend URL
+        })
 
 @api_view(['POST'])
 # Login/Register Page
-def access(request):
+def access_post(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         username = request.POST.get('username')
         password = request.POST.get('password')
 
         if not username or not password:
-            return JsonResponse({'message': 'Username and password are required'}, status=400)
+            return Response({'message': 'Username and password are required'}, status=400)
 
         if action == 'login':
             try:
                 user = User.objects.get(username=username)
                 if check_password(password, user.password):
-                    response = JsonResponse({'message': 'Login successful'})
+                    response = Response({'message': 'Login successful'})
                     response.set_cookie('user_id', user.id, httponly=True, secure=True)
                     return response
-                return JsonResponse({'message': 'Invalid credentials'}, status=400)
+                return Response({'message': 'Invalid credentials'}, status=400)
             except User.DoesNotExist:
                 logger.error(f"Login attempt failed. User {username} not found.")
-                return JsonResponse({'message': 'User not found'}, status=400)
+                return Response({'message': 'User not found'}, status=400)
 
         elif action == 'register':
             if User.objects.filter(username=username).exists():
-                return JsonResponse({'message': 'Username already exists'}, status=400)
+                return Response({'message': 'Username already exists'}, status=400)
 
             user_data = {
                 'username': username,
@@ -164,6 +203,6 @@ def access(request):
             user_serializer = UserSerializer(data=user_data)
             if user_serializer.is_valid():
                 user_serializer.save()
-                return JsonResponse({'message': 'Registration successful'})
+                return Response({'message': 'Registration successful'})
             else:
-                return JsonResponse(user_serializer.errors, status=400)
+                return Response(user_serializer.errors, status=400)
