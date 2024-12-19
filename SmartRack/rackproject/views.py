@@ -27,7 +27,11 @@ def send_arduino_signal(rack_id, action):
         dict: Response from the Arduino or an error message.
     """
     try:
-        response = requests.post(ARDUINO_URL, json={"rack_id": rack_id, "action": action})
+        response = requests.post(
+            ARDUINO_URL,
+            json={"rack_id": rack_id, "action": action},
+            timeout=5  # Optional timeout for the request
+        )
         if response.status_code == 200:
             return response.json()
         else:
@@ -36,7 +40,7 @@ def send_arduino_signal(rack_id, action):
     except requests.RequestException as e:
         logger.exception("Error communicating with Arduino")
         return {"error": str(e)}
-
+    
 @api_view(['GET'])
 def lock_rack_page(request):
     user_id = request.COOKIES.get('user_id')
@@ -170,12 +174,11 @@ def access_get(request):
         })
 
 @api_view(['POST'])
-# Login/Register Page
 def access_post(request):
     if request.method == 'POST':
-        action = request.POST.get('action')
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        action = request.data.get('action')  
+        username = request.data.get('username')
+        password = request.data.get('password')
 
         if not username or not password:
             return Response({'message': 'Username and password are required'}, status=400)
@@ -187,10 +190,15 @@ def access_post(request):
                     response = Response({'message': 'Login successful'})
                     response.set_cookie('user_id', user.id, httponly=True, secure=True)
                     return response
-                return Response({'message': 'Invalid credentials'}, status=400)
+                else:
+                    return Response({'message': 'Invalid credentials'}, status=400)
             except User.DoesNotExist:
+                # If the user doesn't exist, redirect to the signup page
                 logger.error(f"Login attempt failed. User {username} not found.")
-                return Response({'message': 'User not found'}, status=400)
+                return Response({
+                    'message': 'User not found. Redirecting to signup.',
+                    'redirect_url': 'https://frontend-platform.com/signup'  # Redirect to signup page
+                }, status=400)
 
         elif action == 'register':
             if User.objects.filter(username=username).exists():
@@ -198,7 +206,7 @@ def access_post(request):
 
             user_data = {
                 'username': username,
-                'password': make_password(password),
+                'password': make_password(password),  # Hash the password
             }
             user_serializer = UserSerializer(data=user_data)
             if user_serializer.is_valid():
@@ -206,3 +214,6 @@ def access_post(request):
                 return Response({'message': 'Registration successful'})
             else:
                 return Response(user_serializer.errors, status=400)
+
+        else:
+            return Response({'message': 'Invalid action provided'}, status=400)
