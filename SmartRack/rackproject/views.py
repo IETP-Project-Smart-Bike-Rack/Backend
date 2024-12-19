@@ -43,10 +43,10 @@ def lock_rack_page(request):
     if not user_id:
         return Response({'message': 'User not authenticated'}, status=401)
     
-    page_url = ""
+    page_url = "http://localhost:5173/dashboard"
     response_data = {
         "message": "QR code scanner page retrieved successfully",
-        "page_url": page_url,
+       "page_url": page_url,
     }
     return Response(response_data)
 
@@ -102,9 +102,9 @@ def unlock_page(request):
     if not user_id:
         return Response({'message': 'User not authenticated'}, status=401)
 
-    page_url = ""
+    page_url = "http://localhost:5173/dashboard"
 
-    # Respond with the URL and optional user details
+    #Respond with the URL and optional user details
     return Response({
         "message": "Unlock page URL retrieved successfully",
         "unlock_page_url": page_url,
@@ -166,7 +166,7 @@ def access_get(request):
         return Response({
             'status': 'success',
             'message': 'Frontend handles the login/register page.',
-            'redirect_url': 'https://frontend-platform.com/login',  # Replace with actual frontend URL
+          'redirect_url': 'https://frontend-platform.com/login',  # 'redirect_url': 'http://localhost:5173/dashbord',  # Replace with actual frontend URL
         })
 
 @api_view(['POST'])
