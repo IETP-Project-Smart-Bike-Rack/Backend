@@ -57,11 +57,19 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
 ]
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.db' 
+
 CORS_ALLOWED_ORIGINS = [
+<<<<<<< HEAD
     "https://yourfrontenddomain.com",  # Production domain
     "http://localhost:3000",         # Add this for local development
+=======
+    "http://localhost:3000",
+     # Replace with your actual frontend domain        # Add this for local development
+>>>>>>> 7b85baafcd7e59218e8c6a34e3645eeee39d873d
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -113,8 +121,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'smart_rack',
-        'USER': 'new',
-        'PASSWORD': '12345678',
+        'USER': 'root',
+        'PASSWORD': '123456',
         'HOST': 'localhost',  # Or the IP address of your MySQL server
         'PORT': '3306',  # Default MySQL port
     }
