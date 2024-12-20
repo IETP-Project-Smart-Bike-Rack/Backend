@@ -20,7 +20,8 @@ class Rack_UserSerializer(serializers.ModelSerializer):
         fields = ["user","rack","locked_at"]
 
 class HistorySerializer(serializers.ModelSerializer):  
-    User = UserSerializer(read_only =  True)
+    rack = serializers.PrimaryKeyRelatedField(queryset=Rack.objects.all())
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     class Meta:
         model = History
-        fields = ["user","rack","locked_at","unlocked_at"]
+        fields = ['id', 'locked_at', 'unlocked_at', 'rack', 'user'] 
