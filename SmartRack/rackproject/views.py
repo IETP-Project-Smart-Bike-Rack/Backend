@@ -8,38 +8,12 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 import requests  # For communicating with Arduino hardware
 import logging
-
+from .consumers import ESP32Consumer
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Constants for Arduino communication
-ARDUINO_URL = "http://arduino.local/api/lock"
-
-def send_arduino_signal(rack_id, action):
-    """
-    Sends a signal to the Arduino hardware to lock or unlock the rack.
-
-    Args:
-        rack_id (int): The ID of the rack.
-        action (str): The action to perform ('lock' or 'unlock').
-
-    Returns:
-        dict: Response from the Arduino or an error message.
-    """
-    try:
-        response = requests.post(
-            ARDUINO_URL,
-            json={"rack_id": rack_id, "action": action},
-            timeout=5  # Optional timeout for the request
-        )
-        if response.status_code == 200:
-            return response.json()
-        else:
-            logger.error(f"Arduino communication failed with status {response.status_code}")
-            return {"error": "Failed to communicate with Arduino"}
-    except requests.RequestException as e:
-        logger.exception("Error communicating with Arduino")
-        return {"error": str(e)}
+esp_socket  = None
     
 @api_view(['GET'])
 def lock_rack_page(request):
@@ -57,6 +31,7 @@ def lock_rack_page(request):
 # QR Code Scanning and Locking Logic
 @api_view(['POST'])
 def loc(request):
+        global esp_socket
         data = request.data
         rack_id = data.get('rack_id')
         user_id = request.COOKIES.get('user_id')
@@ -73,9 +48,8 @@ def loc(request):
                 return Response({'message': 'Rack is already locked. Please choose another.'}, status=400)
 
             # Signal Arduino to lock the rack
-            arduino_response = send_arduino_signal(rack_id, "lock")
-            if "error" in arduino_response:
-                return Response(arduino_response, status=500)
+            if esp_socket:
+                ESP32Consumer.esp_socket.send(text_data = {"action":"lock", "rackId": 3})
 
             # Update rack status and timestamps
             rack.status = 'locked'
@@ -118,6 +92,7 @@ def unlock_page(request):
 @api_view(['POST'])
 # Unlock Logic
 def unloc(request):
+        global esp_socket
         data = request.data
         rack_id = data.get('rack_id')
         user_id = request.COOKIES.get('user_id')
@@ -133,10 +108,10 @@ def unloc(request):
             user = rack_user.user
 
             # Signal Arduino to unlock the rack
-            arduino_response = send_arduino_signal(rack_id, "unlock")
-            if "error" in arduino_response:
-                return Response(arduino_response, status=500)
-
+            if esp_socket:
+                ESP32Consumer.esp_socket.send(text_data = {"action":"unlock", "rackId": rack_id})
+                return Response("lock command sent")
+                
             # Update rack status and timestamps
             current_time = timezone.now()
             rack.status = 'unlocked'
@@ -177,8 +152,10 @@ def access_get(request):
 def access_post(request):
     if request.method == 'POST':
         action = request.data.get('action')  
-        username = request.data.get('username')
+        username = request.data.get('name')
         password = request.data.get('password')
+        email =  request.data.get('email')
+        phonenumber = request.data.get('phonenumber')
 
         if not username or not password:
             return Response({'message': 'Username and password are required'}, status=400)
@@ -203,10 +180,16 @@ def access_post(request):
         elif action == 'register':
             if User.objects.filter(username=username).exists():
                 return Response({'message': 'Username already exists'}, status=400)
+            if not email or not phonenumber:
+                return Response({'message': 'Email and phone number are required'}, status=400)
+            if User.objects.filter(email=email).exists():
+                return Response({'message': 'Email already exists'}, status=400)
 
             user_data = {
-                'username': username,
+                'name': username,
                 'password': make_password(password),  # Hash the password
+                'email': email,
+                'phonenumber': phonenumber,
             }
             user_serializer = UserSerializer(data=user_data)
             if user_serializer.is_valid():

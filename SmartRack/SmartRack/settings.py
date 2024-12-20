@@ -30,6 +30,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+ASGI_APPLICATION = "SmartRack.asgi.application"
 
 # Application definition
 
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rackproject.apps.RackprojectConfig',
     'corsheaders',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -58,8 +60,8 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "",  # Replace with your actual frontend domain
-    "",         # Add this for local development
+    "https://yourfrontenddomain.com",  # Production domain
+    "http://localhost:3000",         # Add this for local development
 ]
 
 CORS_ALLOW_CREDENTIALS = True
