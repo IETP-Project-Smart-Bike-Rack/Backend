@@ -154,7 +154,7 @@ def access_post(request):
         action = request.data.get('action')  
         username = request.data.get('name')
         password = request.data.get('password')
-        email =  request.data.get('email')
+        email = request.data.get('email')
         phonenumber = request.data.get('phonenumber')
 
         if not username or not password:
@@ -165,16 +165,19 @@ def access_post(request):
                 user = User.objects.get(username=username)
                 if check_password(password, user.password):
                     response = Response({'message': 'Login successful'})
-                    response.set_cookie('user_id', user.id, httponly=True, secure=True)
+                    # Set cookie for the logged-in user
+                    response.set_cookie(
+                        'user_id', user.id, httponly=False, samesite='None' # Allow cross-origin requests
+                    )
+                    #The backend sends the cookie in the HTTP response header using response.set_cookie().
+                    #Set-Cookie: user_id=12345; Path=/; SameSite=None
                     return response
                 else:
                     return Response({'message': 'Invalid credentials'}, status=400)
             except User.DoesNotExist:
-                # If the user doesn't exist, redirect to the signup page
-                logger.error(f"Login attempt failed. User {username} not found.")
                 return Response({
                     'message': 'User not found. Redirecting to signup.',
-                    'redirect_url': 'https://frontend-platform.com/signup'  # Redirect to signup page
+                    'redirect_url': 'https://frontend-platform.com/signup'
                 }, status=400)
 
         elif action == 'register':

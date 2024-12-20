@@ -1,14 +1,22 @@
 import json
-from channels.generic.websocket import WebsocketConsumer
+from channels.generic.websocket import AsyncWebsocketConsumer
 
-class ESP32Consumer(WebsocketConsumer):
-    esp_socket = None
+class ESP32Consumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        # Accept the WebSocket connection
+        await self.accept()
+        print("ESP32 connected!")
 
-    def connect(self):
-        self.accept()
-        ESP32Consumer.esp_socket = self
-        print("WebSocket connect")
-    
-    def recieve(self, text_data):
+    async def disconnect(self, close_code):
+        # Handle WebSocket disconnection
+        print("ESP32 disconnected!")
+
+    async def receive(self, text_data):
+        # Handle incoming WebSocket message
         data = json.loads(text_data)
-        print(f"Recieved: {data}")
+        print("Received from ESP32:", data)
+
+        # Send response back to ESP32
+        await self.send(text_data=json.dumps({
+            'response': 'Message received!'
+        }))
